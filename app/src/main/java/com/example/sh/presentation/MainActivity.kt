@@ -14,18 +14,46 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.sh.R
 import com.google.android.gms.location.*
+import com.google.android.gms.wearable.DataClient
+import com.google.android.gms.wearable.DataEvent
+import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataMapItem
+import com.google.android.gms.wearable.PutDataMapRequest
+import com.google.android.gms.wearable.Wearable
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), DataClient.OnDataChangedListener {
+
+
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
     private val LOCATION_REQUEST_CODE = 1000
     private var referenceLocation: Location? = null
-    private val movementRadius = 1.0 // Radio en metros
+    private val movementRadius = 8.0 // Radio en metros
+    private var mediaPlayer: MediaPlayer? = null
+    private var isAlarmPlaying = false
+    private var isOutOfBounds = false // Verifica si el usuario está fuera del radio
+    private lateinit var dataClient: DataClient
+
+    override fun onDataChanged(dataEvents: DataEventBuffer) {
+        Log.d("reloj",dataEvents.toString())
+        for (event in dataEvents) {
+            if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == "/radius_update") {
+                val dataMapItem = DataMapItem.fromDataItem(event.dataItem)
+                val radius = dataMapItem.dataMap.getDouble("radius")
+                Log.d("MainActivity", "Radio recibido: $radius metros")
+                // Aquí puedes actualizar el radio en la aplicación del reloj
+            }
+        }
+    }
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        dataClient = Wearable.getDataClient(this)
         enableEdgeToEdge()
 
         // Inicializar el cliente de ubicación y el callback
@@ -39,12 +67,23 @@ class MainActivity : AppCompatActivity() {
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 for (location in locationResult.locations) {
+                    sendLocationToPhone(location.latitude, location.longitude)
                     Log.d("LocationUpdates", "Ubicación recibida: ${location.latitude}, ${location.longitude}")
                     checkLocationAndTriggerAlarm(location)
                 }
             }
 
         }
+    }
+
+    fun sendLocationToPhone(latitude: Double, longitude: Double) {
+        val dataMap = PutDataMapRequest.create("/location_update").apply {
+            dataMap.putDouble("latitude", latitude)
+            dataMap.putDouble("longitude", longitude)
+            dataMap.putLong("timestamp", System.currentTimeMillis())
+        }
+        val putDataReq = dataMap.asPutDataRequest()
+        dataClient.putDataItem(putDataReq)
     }
 
     private fun solicitarPermisosUbicacion() {
@@ -56,31 +95,20 @@ class MainActivity : AppCompatActivity() {
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
                 LOCATION_REQUEST_CODE)
         } else {
-            setReferenceLocation()
+            setReferenceLocation(20.482020, -103.530463) // Ciudad de México
             startLocationUpdates()
         }
     }
 
-    private fun setReferenceLocation() {
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
+    private fun setReferenceLocation(lat: Double, lon: Double) {
+        // Crear una instancia de Location con las coordenadas proporcionadas
+        val customLocation = Location("manual")
+        customLocation.latitude = lat
+        customLocation.longitude = lon
 
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            if (location != null) {
-                referenceLocation = location
-                Log.d("LocationUpdates", "Ubicación de referencia establecida: ${referenceLocation?.latitude}, ${referenceLocation?.longitude}")
-            } else {
-                Toast.makeText(this, "Ubicación no disponible para referencia", Toast.LENGTH_SHORT).show()
-            }
-        }
+        // Asignar la ubicación personalizada como la ubicación de referencia
+        referenceLocation = customLocation
+        Log.d("LocationUpdates", "Ubicación de referencia manual establecida: ${referenceLocation?.latitude}, ${referenceLocation?.longitude}")
     }
 
 
@@ -103,27 +131,41 @@ class MainActivity : AppCompatActivity() {
 
 
 
+
     private fun checkLocationAndTriggerAlarm(currentLocation: Location) {
         referenceLocation?.let { refLoc ->
             val distance = refLoc.distanceTo(currentLocation)
             if (distance > movementRadius) {
-                triggerAlarm()
+                if (!isOutOfBounds) {
+                    isOutOfBounds = true
+                    triggerAlarm() // Solo activa la alarma la primera vez que el usuario sale del radio
+                }
+            } else {
+                // Si el usuario regresa dentro del radio, permite activar la alarma nuevamente al salir
+                isOutOfBounds = false
+                isAlarmPlaying = false
             }
         }
     }
 
     private fun triggerAlarm() {
+        if (isAlarmPlaying) return // Evita que la alarma se active de nuevo si ya está sonando
+
+        isAlarmPlaying = true
+
         // Vibrar el dispositivo
         val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
         vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
 
         // Reproducir el sonido de la alarma
-        val mediaPlayer = MediaPlayer.create(this, ) // Reemplaza con el nombre de tu archivo de sonido
-        mediaPlayer.start()
-
-        // Asegúrate de liberar los recursos después de que el sonido haya terminado
-        mediaPlayer.setOnCompletionListener {
-            it.release()
+        mediaPlayer?.release() // Libera cualquier instancia anterior de MediaPlayer
+        mediaPlayer = MediaPlayer.create(this, R.raw.alarma).apply {
+            isLooping = false // Asegura que no se reproduzca en bucle
+            start()
+            setOnCompletionListener {
+                it.release()
+                isAlarmPlaying = false // Permite que se pueda activar la alarma de nuevo cuando termine
+            }
         }
 
         // Mostrar el mensaje de alerta
@@ -135,7 +177,7 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
             LOCATION_REQUEST_CODE -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    setReferenceLocation()
+                    setReferenceLocation(20.482020, -103.530463) // Ciudad de México
                     startLocationUpdates()
                 } else {
                     Toast.makeText(this, "Permiso de ubicación denegado", Toast.LENGTH_SHORT).show()

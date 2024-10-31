@@ -9,11 +9,21 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.gms.wearable.DataClient
+import com.google.android.gms.wearable.DataEvent
+import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataMapItem
+import com.google.android.gms.wearable.PutDataMapRequest
+import com.google.android.gms.wearable.Wearable
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
 class MainActivity : AppCompatActivity() {
+
+
+
+
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var usuarioAdapter: UsuarioAdapter
@@ -21,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.login)
+
 
         recyclerView = findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -36,6 +47,8 @@ class MainActivity : AppCompatActivity() {
             iniciarSesion(email, password)
         }
     }
+
+
 
     private fun iniciarSesion(email: String, password: String) {
         val loginRequest = LoginRequest(email, password) // Ajusta con tus datos de solicitud
@@ -68,23 +81,7 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun obtenerUsuarios() {
-        val call = RetrofitClient.apiService.obtenerUsuarios()
 
-        call.enqueue(object : Callback<List<Usuario>> {
-            override fun onResponse(call: Call<List<Usuario>>, response: Response<List<Usuario>>) {
-                if (response.isSuccessful) {
-                    val usuarios = response.body() ?: emptyList()
-                    usuarioAdapter = UsuarioAdapter(usuarios)
-                    recyclerView.adapter = usuarioAdapter
-                } else {
-                    Log.e("API_ERROR", "Error en la respuesta: ${response.code()}")
-                }
-            }
 
-            override fun onFailure(call: Call<List<Usuario>>, t: Throwable) {
-                Log.e("API_ERROR", "Fallo en la conexión: ${t.message}")
-            }
-        })
-    }
+
 }

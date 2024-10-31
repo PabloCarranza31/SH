@@ -58,6 +58,8 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation ("androidx.appcompat:appcompat:1.4.0")
     implementation ("androidx.core:core-ktx:1.7.0")
+    implementation ("com.google.android.gms:play-services-wearable:18.0.0")
+    implementation ("androidx.wear:wear:1.2.0")
     implementation(libs.wear.tooling.preview)
     implementation(libs.activity.compose)
     implementation(libs.core.splashscreen)
