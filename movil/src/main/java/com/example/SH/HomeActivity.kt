@@ -2,6 +2,7 @@ package com.example.SH
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -10,6 +11,7 @@ import com.google.android.gms.wearable.*
 class HomeActivity : AppCompatActivity(), DataClient.OnDataChangedListener {
 
     private lateinit var dataClient: DataClient
+    private var selectedRadius: Int = 8 // Valor inicial del radio
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,23 +21,28 @@ class HomeActivity : AppCompatActivity(), DataClient.OnDataChangedListener {
 
         val radiusSeekBar = findViewById<SeekBar>(R.id.radiusSeekBar)
         val radiusValue = findViewById<TextView>(R.id.radiusValue)
+        val sendButton = findViewById<Button>(R.id.btnEnviar)
 
-        // Ajuste inicial del SeekBar
-        radiusSeekBar.max = 200 // Ejemplo: máximo a 50 metros
-        radiusSeekBar.progress = 7 // Ejemplo: valor mínimo inicial a 8 metros
-        radiusValue.text = "Radio: ${radiusSeekBar.progress + 1} m"
+        // Seteo inicial del SeekBar
+        radiusSeekBar.max = 200 // Ejemplo: máximo a 200 metros
+        radiusSeekBar.progress = selectedRadius - 1 // Ajuste al índice del SeekBar
+        radiusValue.text = "Radio: $selectedRadius m"
 
         // Listener del SeekBar
         radiusSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                val selectedRadius = progress + 1 // Ajuste de valor mínimo a 1
+                selectedRadius = progress + 1 // Ajuste de valor mínimo a 1
                 radiusValue.text = "Radio: $selectedRadius m"
-                sendRadiusToWearable(selectedRadius.toDouble())
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar) {}
             override fun onStopTrackingTouch(seekBar: SeekBar) {}
         })
+
+        // Listener para el botón de enviar
+        sendButton.setOnClickListener {
+            sendRadiusToWearable(selectedRadius.toDouble())
+        }
     }
 
     override fun onDataChanged(dataEvents: DataEventBuffer) {
@@ -58,7 +65,7 @@ class HomeActivity : AppCompatActivity(), DataClient.OnDataChangedListener {
     private fun sendRadiusToWearable(radius: Double) {
         val dataMap = PutDataMapRequest.create("/radius_update").apply {
             dataMap.putDouble("radius", radius)
-            Log.d("1",radius.toString())
+            Log.d("1", radius.toString())
             dataMap.putLong("timestamp", System.currentTimeMillis())
         }
         val putDataReq = dataMap.asPutDataRequest()

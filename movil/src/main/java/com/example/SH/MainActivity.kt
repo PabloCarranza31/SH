@@ -25,16 +25,14 @@ class MainActivity : AppCompatActivity() {
 
 
 
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var usuarioAdapter: UsuarioAdapter
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.login)
 
 
-        recyclerView = findViewById(R.id.recyclerView)
-        recyclerView.layoutManager = LinearLayoutManager(this)
+
 
 
         val etCorreo = findViewById<EditText>(R.id.etCorreo)

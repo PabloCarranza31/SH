@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity(), DataClient.OnDataChangedListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
         dataClient = Wearable.getDataClient(this)
         enableEdgeToEdge()
 
@@ -170,6 +171,8 @@ class MainActivity : AppCompatActivity(), DataClient.OnDataChangedListener {
 
         // Mostrar el mensaje de alerta
         Toast.makeText(this, "¡Fuera del radio permitido!", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "¡Regresa a la localidad anterior !", Toast.LENGTH_SHORT).show()
+
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
